@@ -1,0 +1,32 @@
+let
+    Source = Csv.Document(File.Contents("C:\Users\USER\iCloudDrive\Personal\Interests & Projects\Learning\Chinese\Anki\Zhongwen-Words-21-11-23.txt"),[Delimiter="	", Columns=5, Encoding=65001, QuoteStyle=QuoteStyle.None]),
+    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Column1", type text}, {"Column2", type text}, {"Column3", type text}, {"Column4", type text}, {"Column5", type text}}),
+    #"Renamed Columns" = Table.RenameColumns(#"Changed Type",{{"Column1", "Hanzi"}}),
+    #"Removed Columns" = Table.RemoveColumns(#"Renamed Columns",{"Column2"}),
+    #"Renamed Columns1" = Table.RenameColumns(#"Removed Columns",{{"Column3", "Pinyin"}}),
+    #"Added Custom" = Table.AddColumn(#"Renamed Columns1", "Tones", each let
+    pinyin = [Pinyin],
+    syllables = Text.Split(pinyin, " "),
+    formattedSyllables = List.Transform(syllables, each 
+        let 
+            originalSyllable = _,
+            chars = Text.ToList(originalSyllable),
+            toneNum = 
+                if List.AnyTrue(List.Transform(chars, each _ = Character.FromNumber(0x0304) or _ = "ā" or _ = "ē" or _ = "ī" or _ = "ō" or _ = "ū")) then "1"
+                else if List.AnyTrue(List.Transform(chars, each _ = Character.FromNumber(0x0301) or _ = "á" or _ = "é" or _ = "í" or _ = "ó" or _ = "ú")) then "2"
+                else if List.AnyTrue(List.Transform(chars, each _ = Character.FromNumber(0x030C) or _ = "ǎ" or _ = "ě" or _ = "ǐ" or _ = "ǒ" or _ = "ǔ")) then "3"
+                else if List.AnyTrue(List.Transform(chars, each _ = Character.FromNumber(0x0300) or _ = "à" or _ = "è" or _ = "ì" or _ = "ò" or _ = "ù")) then "4"
+                else "0",
+            replaceDiacritics = Text.Replace(Text.Replace(Text.Replace(Text.Replace(Text.Replace(Text.Replace(Text.Replace(Text.Replace(Text.Replace(Text.Replace(originalSyllable, "ā", "a"), "ē", "e"), "ī", "i"), "ō", "o"), "ū", "u"), "á", "a"), "é", "e"), "í", "i"), "ó", "o"), "ú", "u"),
+            formattedSyllable = if toneNum = "0" then replaceDiacritics else replaceDiacritics & toneNum
+        in formattedSyllable
+    )
+in Text.Combine(formattedSyllables, " ")),
+    #"Reordered Columns" = Table.ReorderColumns(#"Added Custom",{"Hanzi", "Pinyin", "Column4", "Tones", "Column5"}),
+    #"Removed Columns1" = Table.RemoveColumns(#"Reordered Columns",{"Column5"}),
+    #"Renamed Columns2" = Table.RenameColumns(#"Removed Columns1",{{"Column4", "Meaning"}}),
+    #"Reordered Columns1" = Table.ReorderColumns(#"Renamed Columns2",{"Hanzi", "Tones", "Meaning", "Pinyin"}),
+    #"Removed Columns2" = Table.RemoveColumns(#"Reordered Columns1",{"Pinyin"}),
+    #"Renamed Columns3" = Table.RenameColumns(#"Removed Columns2",{{"Tones", "Pinyin"}})
+in
+    #"Renamed Columns3"

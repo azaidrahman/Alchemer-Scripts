@@ -1,0 +1,112 @@
+--PROJECT LUSH Q5.1 MULTI TEXT OCCASIONS
+
+q0ID = 78
+s = 821
+langID = 1028
+txtlistID = 1032
+  
+sa = getvalue(s)
+st = gettablequestiontitles(s)
+lang = tonumber(getvalue(langID))
+txtlist = getquestionoptions(txtlistID,"Reporting")
+q0 = getvalue(q0ID)
+qtit = getquestionoptions(q0ID,"Title")
+
+occasions = {
+{"Before Breakfast","Breakfast at Home","Breakfast (on-the-go/ at school)","Mid morning","Lunch","Mid Afternoon","Before Afternoon nap","After afternoon nap","Dinner","Before Sleep","Family/ friends gathering","While playing games","Before class","During class","After class","Recess/ break","While watching dramas/ movies/ videos"},
+{"Sebelum sarapan","Sarapan di rumah","Sarapan (dalam perjalanan/ di sekolah)","Lewat pagi","Makan tengahari","Lewat tengahari","Sebelum tidur petang","Selepas tidur petang","Makan malam","Sebelum tidur","Majlis keluarga/rakan - rakan","Semasa bermain permainan","Sebelum kelas","Semasa kelasl","Selepas kelas","Waktu rehat","Semasa menonton drama/filem/video"},
+{"早餐前","在家享用早餐","早餐（途中/学校） ","上午中旬","午餐","下午三四点钟","午睡前","午睡后","晚餐","睡前","家庭/朋友聚会 ","玩游戏的时候","课前","上课时","下课后","课间休息","当我在看电视剧、电影或视频时"}
+}
+
+function main()
+	ite = 0
+	ans = {}
+	--check if its 1-15 q0
+	ref = {}
+	for k,v in pairs(q0)do
+		numval = tonumber(v)
+		if numval <= 15 then 
+			ref[k] = strip(qtit[k])
+		end
+	end
+	for key,arr in orderedPairs(sa)do
+		ite = ite + 1
+		category = st[key]
+		if in_array(strip(category),ref) then
+			for id, reportingVal in pairs(arr)do
+				reportingVal = tonumber(reportingVal)
+				combine = category .. ' - ' .. occasions[lang][reportingVal]
+				table.insert(ans,combine)
+			end
+		end
+	end
+	
+	txt_i = 0
+	txt_ans = {}
+	for key, id in orderedPairs(txtlist)do
+		txt_i = txt_i + 1
+		if txt_i > count(ans) then break end
+		txt_ans[key] = ans[txt_i]
+	end
+	
+	setvalue(txtlistID,txt_ans)
+	
+	print(ans)
+end
+
+function cmp_multitype(op1, op2)
+    type1, type2 = type(op1), type(op2)
+    if type1 ~= type2 then --cmp by type
+        return type1 < type2
+    elseif type1 == "number" or type1 == "string" then --type2 is equal to type1
+        return op1 < op2 --comp by default
+    elseif type1 == "boolean" then
+        return op1 == true
+    else
+        return tostring(op1) < tostring(op2) --cmp by address
+    end
+end
+
+function __genOrderedIndex( t )
+    orderedIndex = {}
+    for key in pairs(t) do
+        table.insert( orderedIndex, key )
+    end
+    table.sort( orderedIndex, cmp_multitype )
+    return orderedIndex
+end
+
+function orderedNext(t, state)
+     key = nil
+    --print("orderedNext: state = "..tostring(state) )
+    if state == nil then
+        -- the first time, generate the index
+        t.__orderedIndex = __genOrderedIndex( t )
+        key = t.__orderedIndex[1]
+    else
+        -- fetch the next value
+        for i = 1,#t.__orderedIndex do
+            if t.__orderedIndex[i] == state then
+                key = t.__orderedIndex[i+1]
+            end
+        end
+    end
+
+    if key then
+        return key, t[key]
+    end
+
+    -- no more value to return, cleanup
+    t.__orderedIndex = nil
+    return
+end
+
+function orderedPairs(t)
+    return orderedNext, t, nil
+end
+
+function strip(str)
+    return string.gsub(string.lower(str), "%s+", "")
+end
+
+main()
