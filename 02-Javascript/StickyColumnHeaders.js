@@ -1,5 +1,5 @@
 $(document).ready(function () {
-  if (window.matchMedia("(min-width: 1024px)").matches) {
+  //if (window.matchMedia("(min-width: 1024px)").matches) {
     // Table transformation script
     //(function () {
     //  var table = $(".sg-table");
@@ -52,14 +52,27 @@ $(document).ready(function () {
 
       const tableTop = table.offset().top;
       let isSticky = false;
+      let rafId = null;
+
+      // Create a placeholder to prevent content jump
+      const placeholder = $('<div>').height(header.outerHeight()).hide().insertBefore(table);
 
       // Capture original widths from the first row (header + first body row)
       const originalWidths = table.find('tr:first-child').find('th, td').map(function() {
         return $(this).outerWidth();
       }).get();
 
+      function applyOriginalWidths() {
+        header.find('th').each(function(index) {
+          $(this).outerWidth(originalWidths[index]);
+        });
+        table.find('tbody tr:first-child td').each(function(index) {
+          $(this).outerWidth(originalWidths[index + header.find('th').length]);
+        });
+      }
+
       function updateStickyHeader() {
-        const scrollTop = $(window).scrollTop();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
         
         if (scrollTop > tableTop && !isSticky) {
           header.css({
@@ -68,19 +81,11 @@ $(document).ready(function () {
             left: table.offset().left + 'px',
             width: table.outerWidth() + 'px',
             'background-color': 'white',
-            'z-index': 1000
+            'z-index': 1000,
+            transform: 'translateZ(0)'
           });
-          
-          // Apply original widths to maintain layout
-          header.find('th').each(function(index) {
-            $(this).outerWidth(originalWidths[index]);
-          });
-
-          // Apply widths to the first row of the table body to maintain alignment
-          table.find('tbody tr:first-child td').each(function(index) {
-            $(this).outerWidth(originalWidths[index + header.find('th').length]);
-          });
-
+          placeholder.show();
+          applyOriginalWidths();
           isSticky = true;
         } else if (scrollTop <= tableTop && isSticky) {
           header.css({
@@ -89,22 +94,47 @@ $(document).ready(function () {
             left: '',
             width: '',
             'background-color': '',
-            'z-index': ''
+            'z-index': '',
+            transform: ''
           });
-          
-          // Reset to original state
+          placeholder.hide();
           header.find('th').css('width', '');
           table.find('tbody tr:first-child td').css('width', '');
-
           isSticky = false;
+        }
+        
+        rafId = null;
+      }
+
+      function onScroll() {
+        if (!rafId) {
+          rafId = window.requestAnimationFrame(updateStickyHeader);
         }
       }
 
-      $(window).on('scroll resize', updateStickyHeader);
+      window.addEventListener('scroll', onScroll, { passive: true });
+      
+      // Optimize resize handler
+      let resizeTimeout;
+      $(window).on('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(function() {
+          // Recalculate original widths and update sticky header
+          originalWidths.length = 0;
+          table.find('tr:first-child').find('th, td').each(function() {
+            originalWidths.push($(this).outerWidth());
+          });
+          if (isSticky) {
+            applyOriginalWidths();
+          }
+          updateStickyHeader();
+        }, 250);
+      });
+
       updateStickyHeader(); // Initial call
     }
 
     // Run the sticky header function after any table transformation
     createStickyHeader();
-  }
+  //}
 });
